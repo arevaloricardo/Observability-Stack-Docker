@@ -67,11 +67,27 @@ services:
     networks:
       - apptelink-prueba-grafana-stmpjq
 
+  promtail:
+    image: grafana/promtail:latest
+    restart: unless-stopped
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml
+      - otel-logs:/tmp:ro  # Leer logs del collector
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - apptelink-prueba-grafana-stmpjq
+    depends_on:
+      - loki
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     restart: unless-stopped
     volumes:
       - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml
+      - otel-logs:/tmp  # Volumen compartido para logs
     command: --config=/etc/otelcol-contrib/config.yaml
     ports:
       - "4317:4317"  # OTLP gRPC
@@ -82,12 +98,14 @@ services:
     depends_on:
       - loki
       - tempo
+      - promtail
 
 volumes:
   grafana-storage: {}
   prometheus-storage: {}
   loki-storage: {}
   tempo-storage: {}
+  otel-logs: {}  # Nuevo volumen para logs
 
 networks:
   apptelink-prueba-grafana-stmpjq:

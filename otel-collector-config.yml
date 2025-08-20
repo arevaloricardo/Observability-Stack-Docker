@@ -10,13 +10,6 @@ processors:
   batch:
     timeout: 5s
     send_batch_size: 1000
-  
-  # Procesador para agregar atributos a los logs
-  attributes/loki:
-    actions:
-      - key: loki.resource.labels
-        value: service.name, service.version, deployment.environment
-        action: insert
 
 exporters:
   prometheus:
@@ -27,13 +20,14 @@ exporters:
     tls:
       insecure: true
   
-  # Nuevo exportador para Loki usando otlphttp
-  otlphttp/loki:
-    endpoint: "http://loki:3100/otlp"
-    tls:
-      insecure: true
-    headers:
-      "Content-Type": "application/x-protobuf"
+  # Usar logging exporter para enviar logs como JSON a stdout
+  # Luego Loki puede recoger estos logs usando promtail o docker logs
+  logging:
+    loglevel: info
+  
+  # Alternativamente, podemos usar file exporter
+  file/logs:
+    path: /tmp/otel-logs.json
 
 service:
   pipelines:
@@ -49,5 +43,5 @@ service:
     
     logs:
       receivers: [otlp]
-      processors: [batch, attributes/loki]
-      exporters: [otlphttp/loki]
+      processors: [batch]
+      exporters: [logging, file/logs]
