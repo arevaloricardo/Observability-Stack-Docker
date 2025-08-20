@@ -1,94 +1,73 @@
-version: "3.8"
+version: '3.8'
+
 services:
   grafana:
     image: grafana/grafana:latest
     restart: unless-stopped
-    environment:
-      - GF_DATABASE_TYPE=postgres
-      - GF_DATABASE_HOST=postgres:5432
-      - GF_DATABASE_NAME=${GRAFANA_DB_NAME}
-      - GF_DATABASE_USER=${GRAFANA_DB_USER}
-      - GF_DATABASE_PASSWORD=${GRAFANA_DB_PASSWORD}
-      - GF_DATABASE_SSL_MODE=disable
     volumes:
       - grafana-storage:/var/lib/grafana
-    labels:
-      - traefik.http.routers.apptelink-prueba-grafana-xyivra-25-web.rule=Host(`${GRAFANA_DOMAIN}`)
-      - traefik.http.routers.apptelink-prueba-grafana-xyivra-25-web.entrypoints=web,websecure
-      - traefik.http.routers.apptelink-prueba-grafana-xyivra-25-web.tls=true
-      - traefik.http.routers.apptelink-prueba-grafana-xyivra-25-web.tls.certresolver=${TRAEFIK_CERT_RESOLVER}
-      - traefik.http.services.apptelink-prueba-grafana-xyivra-25-web.loadbalancer.server.port=${GRAFANA_PORT}
-      - traefik.http.routers.apptelink-prueba-grafana-xyivra-25-web.service=apptelink-prueba-grafana-xyivra-25-web
-      - traefik.enable=true
-      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
-      - traefik.http.routers.apptelink-prueba-grafana-xyivra-25-web.middlewares=redirect-to-https
-    depends_on:
-      - postgres
-
-  postgres:
-    image: postgres:latest
-    restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-  collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    volumes:
-      - ./config/otel-collector.yml:/etc/otelcol-contrib/config.yaml
-    command:
-      - --config=/etc/otelcol-contrib/config.yaml
-    restart: unless-stopped
-    ports:
-      - "${OTEL_GRPC_PORT}:4317"  # OTLP gRPC
-      - "${OTEL_HTTP_PORT}:4318"  # OTLP HTTP
-      - "${OTEL_METRICS_PORT}:8889"  # Prometheus metrics (opcional)
+      - GF_SERVER_ROOT_URL=https://${GRAFANA_DOMAIN}
+      - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN}
+    networks:
+      - apptelink-prueba-grafana-stmpjq
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grafana-web.rule=Host(`${GRAFANA_DOMAIN}`)
+      - traefik.http.routers.grafana-web.entrypoints=web
+      - traefik.http.routers)grafana-web.middlewares=redirect-to-https@file
+      - traefik.http.services.grafana-web.loadbalancer.server.port=3000
+      - traefik.http.routers.grafana-websecure.rule=Host(`${GRAFANA_DOMAIN}`)
+      - traefik.http.routers.grafana-websecure.entrypoints=websecure
+      - traefik.http.routers.grafana-websecure.tls=true
+      - traefik.http.routers.grafana-websecure.tls.certresolver=letsencrypt
+      - traefik.http.services.grafana-websecure.loadbalancer.server.port=3000
 
   prometheus:
     image: prom/prometheus:latest
-    volumes:
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --web.console.libraries=/usr/share/prometheus/console_libraries
-      - --web.console.templates=/usr/share/prometheus/consoles
     restart: unless-stopped
-    ports:
-      - '${PROMETHEUS_PORT}:9090'
-    depends_on:
-      - collector
+    volumes:
+      - prometheus-storage:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - apptelink-prueba-grafana-stmpjq
 
   loki:
     image: grafana/loki:latest
     restart: unless-stopped
     volumes:
-      - loki-data:/loki
-    ports:
-      - "${LOKI_PORT}:3100"
-    depends_on:
-      - collector
+      - loki-storage:/loki
+      - ./loki-config.yml:/etc/loki/loki-config.yml
+    command: -config.file=/etc/loki/loki-config.yml
+    networks:
+      - apptelink-prueba-grafana-stmpjq
 
   tempo:
     image: grafana/tempo:latest
-    volumes:
-      - ./config/tempo.yml:/etc/tempo.yml
-      - tempo-data:/var/tempo
-    command:
-      - -config.file=/etc/tempo.yml
     restart: unless-stopped
-    ports:
-      - "${TEMPO_PORT}:3200"  # Tempo HTTP
-    depends_on:
-      - collector
+    volumes:
+      - tempo-storage:/tmp/tempo
+      - ./tempo-config.yml:/etc/tempo/tempo-config.yml
+    command: -config.file=/etc/tempo/tempo-config.yml
+    networks:
+      - apptelink-prueba-grafana-stmpjq
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    restart: unless-stopped
+    volumes:
+      - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml
+    command: --config=/etc/otelcol-contrib/config.yaml
+    networks:
+      - apptelink-prueba-grafana-stmpjq
 
 volumes:
-  grafana-storage:
-  postgres-data:
-  prometheus-data:
-  loki-data:
-  tempo-data:
+  grafana-storage: {}
+  prometheus-storage: {}
+  loki-storage: {}
+  tempo-storage: {}
+
+networks:
+  apptelink-prueba-grafana-stmpjq:
+    name: apptelink-prueba-grafana-stmpjq
+    external: true

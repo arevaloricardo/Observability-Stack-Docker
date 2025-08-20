@@ -5,17 +5,11 @@ distributor:
   receivers:
     otlp:
       protocols:
-        http:
         grpc:
-
-ingester:
-  trace_idle_period: 10s
-  max_block_duration: 5m
+        http:
 
 storage:
   trace:
     backend: local
     local:
-      path: /var/tempo/traces
-    wal:
-      path: /var/tempo/wal
+      path: /tmp/tempo/traces

@@ -2,27 +2,29 @@ receivers:
   otlp:
     protocols:
       grpc:
+        endpoint: 0.0.0.0:4317
       http:
-
-exporters:
-  prometheus:
-    endpoint: "0.0.0.0:8889"
-  loki:
-    endpoint: "http://loki:3100/loki/api/v1/push"
-  otlp:
-    endpoint: "tempo:4317"
-    tls:
-      insecure: true  # Para desarrollo; usa certificados en producción
+        endpoint: 0.0.0.0:4318
 
 processors:
   batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+exporters:
+  prometheus:
+    endpoint: "prometheus:9090"
+    send_metrics: true
+  loki:
+    endpoint: "http://loki:3100/loki/api/v1/push"
+    format: json
+  otlp/tempo:
+    endpoint: "tempo:4317"
+    tls:
+      insecure: true
 
 service:
   pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp]
     metrics:
       receivers: [otlp]
       processors: [batch]
@@ -31,3 +33,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [loki]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/tempo]
