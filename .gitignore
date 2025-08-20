@@ -1,0 +1,26 @@
+# Variables de entorno sensibles
+.env
+
+# Logs
+*.log
+
+# Archivos temporales de Docker
+.docker/
+
+# Directorios de datos locales (si los usas)
+data/
+logs/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files
+*.bak
+*.backup
