@@ -10,14 +10,30 @@ processors:
   batch:
     timeout: 5s
     send_batch_size: 1000
+  
+  # Procesador para agregar atributos a los logs
+  attributes/loki:
+    actions:
+      - key: loki.resource.labels
+        value: service.name, service.version, deployment.environment
+        action: insert
 
 exporters:
   prometheus:
     endpoint: "0.0.0.0:8889"
+  
   otlp/tempo:
     endpoint: "tempo:4317"
     tls:
       insecure: true
+  
+  # Nuevo exportador para Loki usando otlphttp
+  otlphttp/loki:
+    endpoint: "http://loki:3100/otlp"
+    tls:
+      insecure: true
+    headers:
+      "Content-Type": "application/x-protobuf"
 
 service:
   pipelines:
@@ -25,7 +41,13 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus]
+    
     traces:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlp/tempo]
+    
+    logs:
+      receivers: [otlp]
+      processors: [batch, attributes/loki]
+      exporters: [otlphttp/loki]

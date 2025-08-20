@@ -25,6 +25,7 @@ services:
       - traefik.http.services.grafana-websecure.loadbalancer.server.port=3000
     depends_on:
       - prometheus
+      - loki
       - tempo
 
   prometheus:
@@ -54,6 +55,18 @@ services:
     networks:
       - apptelink-prueba-grafana-stmpjq
 
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    volumes:
+      - loki-storage:/loki
+      - ./loki-config.yml:/etc/loki/loki-config.yml
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"  # Loki HTTP
+    networks:
+      - apptelink-prueba-grafana-stmpjq
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     restart: unless-stopped
@@ -67,11 +80,13 @@ services:
     networks:
       - apptelink-prueba-grafana-stmpjq
     depends_on:
+      - loki
       - tempo
 
 volumes:
   grafana-storage: {}
   prometheus-storage: {}
+  loki-storage: {}
   tempo-storage: {}
 
 networks:
