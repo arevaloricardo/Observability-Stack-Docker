@@ -20,14 +20,14 @@ exporters:
     tls:
       insecure: true
   
-  # Usar logging exporter para enviar logs como JSON a stdout
-  # Luego Loki puede recoger estos logs usando promtail o docker logs
-  logging:
-    loglevel: info
+  # Usar debug exporter en lugar del logging deprecado
+  debug:
+    verbosity: detailed
   
-  # Alternativamente, podemos usar file exporter
+  # File exporter para que Promtail pueda leer los logs
   file/logs:
     path: /tmp/otel-logs.json
+    format: json
 
 service:
   pipelines:
@@ -44,4 +44,4 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging, file/logs]
+      exporters: [debug, file/logs]
