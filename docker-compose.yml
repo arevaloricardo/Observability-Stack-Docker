@@ -9,19 +9,24 @@ services:
     environment:
       - GF_SERVER_ROOT_URL=https://${GRAFANA_DOMAIN}
       - GF_SERVER_DOMAIN=${GRAFANA_DOMAIN}
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
     networks:
       - apptelink-prueba-grafana-stmpjq
     labels:
       - traefik.enable=true
       - traefik.http.routers.grafana-web.rule=Host(`${GRAFANA_DOMAIN}`)
       - traefik.http.routers.grafana-web.entrypoints=web
-      - traefik.http.routers)grafana-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.grafana-web.middlewares=redirect-to-https@file
       - traefik.http.services.grafana-web.loadbalancer.server.port=3000
       - traefik.http.routers.grafana-websecure.rule=Host(`${GRAFANA_DOMAIN}`)
       - traefik.http.routers.grafana-websecure.entrypoints=websecure
       - traefik.http.routers.grafana-websecure.tls=true
       - traefik.http.routers.grafana-websecure.tls.certresolver=letsencrypt
       - traefik.http.services.grafana-websecure.loadbalancer.server.port=3000
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
 
   prometheus:
     image: prom/prometheus:latest
@@ -29,8 +34,16 @@ services:
     volumes:
       - prometheus-storage:/prometheus
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     networks:
       - apptelink-prueba-grafana-stmpjq
+    depends_on:
+      - otel-collector
 
   loki:
     image: grafana/loki:latest
@@ -46,7 +59,7 @@ services:
     image: grafana/tempo:latest
     restart: unless-stopped
     volumes:
-      - tempo-storage:/tmp/tempo
+      - tempo-storage:/var/tempo
       - ./tempo-config.yml:/etc/tempo/tempo-config.yml
     command: -config.file=/etc/tempo/tempo-config.yml
     networks:
@@ -58,8 +71,15 @@ services:
     volumes:
       - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml
     command: --config=/etc/otelcol-contrib/config.yaml
+    ports:
+      - "4317:4317"  # OTLP gRPC
+      - "4318:4318"  # OTLP HTTP
+      - "8889:8889"  # Prometheus metrics
     networks:
       - apptelink-prueba-grafana-stmpjq
+    depends_on:
+      - loki
+      - tempo
 
 volumes:
   grafana-storage: {}

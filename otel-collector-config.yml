@@ -13,11 +13,11 @@ processors:
 
 exporters:
   prometheus:
-    endpoint: "prometheus:9090"
-    send_metrics: true
-  loki:
-    endpoint: "http://loki:3100/loki/api/v1/push"
-    format: json
+    endpoint: "0.0.0.0:8889"
+  otlphttp/loki:
+    endpoint: "http://loki:3100/otlp"
+    tls:
+      insecure: true
   otlp/tempo:
     endpoint: "tempo:4317"
     tls:
@@ -32,7 +32,7 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [loki]
+      exporters: [otlphttp/loki]
     traces:
       receivers: [otlp]
       processors: [batch]
